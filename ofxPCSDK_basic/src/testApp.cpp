@@ -10,24 +10,12 @@ Copyright(c) 2012 Intel Corporation. All Rights Reserved.
 
 #include "testApp.h"
 
-//Enumerators and Labels
-PXCGesture::GeoNode::Label gFingers[] = {	PXCGesture::GeoNode::LABEL_BODY_HAND_PRIMARY|PXCGesture::GeoNode::LABEL_FINGER_THUMB,
-											PXCGesture::GeoNode::LABEL_BODY_HAND_PRIMARY|PXCGesture::GeoNode::LABEL_FINGER_INDEX,
-											PXCGesture::GeoNode::LABEL_BODY_HAND_PRIMARY|PXCGesture::GeoNode::LABEL_FINGER_MIDDLE,
-											PXCGesture::GeoNode::LABEL_BODY_HAND_PRIMARY|PXCGesture::GeoNode::LABEL_FINGER_RING,
-											PXCGesture::GeoNode::LABEL_BODY_HAND_PRIMARY|PXCGesture::GeoNode::LABEL_FINGER_PINKY
-};
-
-
-PXCGesture::GeoNode::Label gHands[] = {PXCGesture::GeoNode::LABEL_BODY_HAND_PRIMARY,PXCGesture::GeoNode::LABEL_BODY_HAND_SECONDARY};
-
-ofPoint screenSize;
-float screenScale;
-
 struct {
     PXCGesture::Gesture::Label label;
     int id;
-} gesture_list[] = {
+}
+
+gesture_list[] = {
     PXCGesture::Gesture::LABEL_POSE_PEACE,      1,
     PXCGesture::Gesture::LABEL_POSE_THUMB_UP,   2,
     PXCGesture::Gesture::LABEL_POSE_THUMB_DOWN, 3,
@@ -51,6 +39,7 @@ testApp::testApp()
 
 void testApp::setup() 
 {
+	ofSetLogLevel ( OF_LOG_WARNING ) ; 
 	ofSetVerticalSync(true);
 	ofDisableNormalizedTexCoords();
 	glEnable(GL_DEPTH_TEST);
@@ -61,45 +50,37 @@ void testApp::setup()
         return;
     }
 
+	bMirrorX = true ; 
+	bMirrorY = false ;
+
     int w, h;
 	//Allocate the texture for RGB
     if (PXCUPipeline_QueryRGBSize(pipeline,&w, &h)) {
         rgbTexture.allocate(w,h,GL_RGBA);
         colorMap=new unsigned char[w*h*4];
-		cout << "color map is : " << w << " , " << h << endl ;
+		rgbWidth = w ; 
+		rgbHeight = h ;
+		
+		cout << "color map is : " << w << " x " << h << endl ;
     }
 	//Allocate the depth texture
     if (PXCUPipeline_QueryDepthMapSize(pipeline,&w, &h)) {
         depthTexture.allocate(w,h,GL_LUMINANCE);
         depthMap=new short[w*h];
-		cout << "depth map is : " << w << " , " << h << endl ;
+		cout << "depth map is : " << w << " x " << h << endl ;
     }
 
 	//Alocate the label texture
     if (PXCUPipeline_QueryLabelMapSize(pipeline,&w, &h)) {
         labelTexture.allocate(w,h,GL_LUMINANCE);
         labelMap=new unsigned char[w*h];
-		mlw = w ; 
-		mlh = h ; 
-		cout << "label map is : " << w << " , " << h << endl ;
+		cout << "label map is : " << w << " x " << h << endl ;
     }
 	
-	//Setup the fingers
-	for(int i=0;i<NFINGERS;++i)
-	{	
-		fingers[i].bExists = false;
-		fingers[i].geoLabel = gFingers[i];
-		fingers[i].pos.set(0,0,0);
+	for( int i = 0; i < 2; i++)
+	{
+		hands[i].setup( i , 320 , 240 , true , false ) ; 
 	}
-
-	for(int i=0; i< 2; i++){
-		//setup hands stuff
-		hands[i].bExists = false;
-		hands[i].geoLabel = gHands[i];
-		hands[i].pos.set(0,0,0);
-	}
-	
-	screenScale = 4.0; // some scalar for screen positioning // not accurate
 }
 
 void testApp::update( ) 
@@ -144,7 +125,7 @@ void testApp::updateTextures()
 			if (depthMap) PXCUPipeline_QueryDepthMap(pipeline,depthMap);
 			if (irMap)    PXCUPipeline_QueryIRMap(pipeline,irMap);
 			if (labelMap) PXCUPipeline_QueryLabelMap(pipeline,labelMap,0);
-
+			
 			//Query the gesture data
 			PXCGesture::Gesture data;
 			if (PXCUPipeline_QueryGesture(pipeline,PXCGesture::GeoNode::LABEL_ANY,&data))
@@ -156,7 +137,7 @@ void testApp::updateTextures()
 					if (gesture_list[i].label == data.label) 
 					{
 						gestureId=gesture_list[i].id;
-						cout << "gesture ID of : " << gestureId << " had occured ! " << endl ;
+						cout << "gesture ID of : " << gestureId << " had occured ! " << endl ; //gesture_list[i] << endl ;
 						break;
 					}
 				}
@@ -171,31 +152,20 @@ void testApp::updateTextures()
 				PXCFaceAnalysis::Detection::Data data;
 				if (PXCUPipeline_QueryFaceLocationData(pipeline, face, &data)) 
 				{
-
-					faceArea = ofRectangle( data.rectangle.x , data.rectangle.y , data.rectangle.w , data.rectangle.h ) ; 
+					float _x = data.rectangle.x ; 
+					float _y = data.rectangle.y ; 
+					if ( bMirrorX ) 
+						_x = rgbWidth - data.rectangle.x - ( data.rectangle.w * 0.5 ) ; 
+					if ( bMirrorY ) 
+						_y = rgbHeight - data.rectangle.y ; 
+					faceArea = ofRectangle( _x , _y , data.rectangle.w , data.rectangle.h ) ; 
 				}
 			}
 
-			//Update all the fingers
-			int nFingersDetected = 0;
-			for(int i=0;i<NFINGERS;++i)
-			{
-				fingers[i].bExists = PXCUPipeline_QueryGeoNode(pipeline, fingers[i].geoLabel, &mNode);
-				if(fingers[i].bExists ) 
-				{	
-					nFingersDetected ++;
-					fingers[i].pos.set(mlw - mNode.positionImage.x, mNode.positionImage.y, mNode.positionWorld.z);
-				} 
-			}
-			
 			//Update hands
 			for(int i=0; i <2; i++)
 			{
-				hands[i].bExists = PXCUPipeline_QueryGeoNode( pipeline , hands[i].geoLabel, &mNode);
-				if(hands[i].bExists)
-				{
-					hands[i].pos.set(mlw- mNode.positionImage.x, mNode.positionImage.y, mNode.openness*.01);
-				}
+				hands[i].updateFromPipeline( pipeline , mNode ) ; 
 			}
 
 			//Now that we are done grabbing data from the frame we can unlock or release it
@@ -224,22 +194,32 @@ void testApp::draw()
 {
 	ofBackground(15 , 15 , 15 );
 	ofEnableAlphaBlending( ); 
-
-	ofSetColor(255);
-
 	ofSetColor( 255 , 255 , 255 ) ; 
 
 	//Draw the User Representation
 	glDisable( GL_DEPTH_TEST ) ; 
 	ofRectangle userRepArea = ofRectangle ( ofGetWidth() - 330 , ofGetHeight() - 250 , 320 , 240 ) ; 
 	
-	//depthTexture.draw( userRepArea ) ; 
-	rgbTexture.draw( userRepArea ) ; 
+	//Finger positions align to Depth Map not RGB
+	//Flip the texture
+	ofPushMatrix() ;
+		ofTranslate( userRepArea.x + userRepArea.width , userRepArea.y ) ;
+		ofScale( -1 , 1 , 1 ) ; 
+		depthTexture.draw( 0 , 0 , userRepArea.width , userRepArea.height ) ; 
+	ofPopMatrix() ; 
+	//rgbTexture.draw( userRepArea ) ; 
+
+	ofPushMatrix() ; 
+		ofTranslate( userRepArea.x , userRepArea.y ) ; 
+		for ( int i = 0 ; i < 2 ; i++ ) 
+			hands[i].drawUserRep( ) ; 
+	ofPopMatrix( ) ;
 
 	ofPushStyle( )  ;
 		ofPushMatrix( ) ; 
 			ofTranslate( userRepArea.x , userRepArea.y ) ; 
-			ofRect( userRepArea.x / 2 , userRepArea.y / 2 , userRepArea.width/2 , userRepArea.height/2 ) ; 
+			ofScale( 0.5 , 0.5 ) ; 
+			ofRect( userRepArea ) ; 
 			ofSetColor( 255 , 255 ,0 ) ; 
 			ofNoFill ( ) ; 
 			ofEnableSmoothing( ) ; 
@@ -248,47 +228,9 @@ void testApp::draw()
 		ofPopMatrix( ) ; 
 	ofPopStyle( ) ; 
 
-	ofPushMatrix( ) ; 
-		ofTranslate( userRepArea.x , userRepArea.y ) ;
-		ofPushStyle( ) ; 
-			for(int i=0;i<NFINGERS;++i)
-			{
-				fingers[i].bExists = PXCUPipeline_QueryGeoNode(pipeline, fingers[i].geoLabel, &mNode);
-				if(fingers[i].bExists ) 
-				{	
-					ofFill( ) ; 
-					ofSetColor( 255 , 0 , 255 ) ;
-					ofCircle( mNode.positionImage.x , mNode.positionImage.y , 15 ) ; 
-				} 
-			}
-		ofPopStyle( ) ; 
-	ofPopMatrix() ; 
-	ofSetColor( 255 , 128 ) ; 
-	//rgbTexture.draw( userRepArea ) ; 
 	
-	for(int i=0;i<NFINGERS;i++)
-	{
-		if(fingers[i].bExists)
-		{
-	
-			ofSetColor(0,255,255);
-
-			//ofSetColor(255,255,0);
-			ofFill();
-			ofCircle((ofGetScreenWidth()-mlw) +fingers[i].pos.x, fingers[i].pos.y, 5);
-			//ofNoFill();
-			ofCircle(fingers[i].pos*screenScale, 20);
-		}
-	}
-
-	for(int i = 0; i<2; i++){
-		if(hands[i].bExists){
-			ofSetColor(255);
-			ofFill();
-			if(i==0)	ofNoFill();
-			ofCircle((hands[i].pos*screenScale)+ hands[i].pos.z*.25, (hands[i].pos.z*100)*.5);
-		}
-	}
+	for ( int i = 0 ; i < 2 ; i++ ) 
+		hands[i].drawCursor( ) ; 
 
 	string msg = "\nPress 'f' to toggle fullscreen";
 	msg += "\nfps: " + ofToString(ofGetFrameRate(), 2);

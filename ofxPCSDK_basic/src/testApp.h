@@ -19,21 +19,8 @@ https://github.com/MadSciLabs/PXCU_demos/ was extremely helpful as well
 #include "pxcupipeline.h"
 #include "util_pipeline.h"
 #include "gesture_render.h"
+#include "ofxHand.h"
 
-#define NFINGERS 5
-
-struct finger {
-	PXCGesture::GeoNode::Label geoLabel;
-	ofPoint pos;
-	bool	bExists ; 
-
-};
-
-struct hand {
-	PXCGesture::GeoNode::Label geoLabel;
-	ofPoint pos;
-	bool bExists;
-};
 
 class testApp : public ofBaseApp {
 	public:
@@ -64,14 +51,13 @@ class testApp : public ofBaseApp {
         short *irMap;
 		
 		PXCGesture::GeoNode mNode;
-
-		finger	fingers[NFINGERS];
-		hand	hands[2];
+		ofxHand	hands[2];
 
         int  gestureId;
         Rect faceRect;
         bool isWait;
-		int mlw,mlh;
+		int rgbWidth, rgbHeight ;
+		bool bMirrorX , bMirrorY ; 
 		
 
 		
