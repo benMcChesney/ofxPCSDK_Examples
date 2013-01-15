@@ -39,6 +39,8 @@ testApp::testApp()
 
 void testApp::setup() 
 {
+	Tweenzor::init( ) ; 
+
 	ofSetLogLevel ( OF_LOG_WARNING ) ; 
 	ofSetVerticalSync(true);
 	ofDisableNormalizedTexCoords();
@@ -102,6 +104,7 @@ void testApp::setup()
 
 void testApp::update( ) 
 {
+	Tweenzor::update( ofGetElapsedTimeMillis() ) ; 
 	updateTextures() ;
 }
 
@@ -180,11 +183,10 @@ void testApp::updateTextures()
 					ofPoint faceCentroid = ofPoint ( faceArea.x + faceArea.width / 2 , faceArea.y + faceArea.height / 2 ) ; 
 					faceCentroid.x = faceCentroid.x / rgbWidth ; 
 					faceCentroid.y = faceCentroid.y / rgbHeight ; 
-					float curXRotation = ofMap( faceCentroid.x , 0.0f , 1.0f , -maxXRotation , maxXRotation ) ;
-					float curYRotation = ofMap( faceCentroid.y , 0.0f , 1.0f , -maxYRotation , maxYRotation ) ;
-					ofQuaternion yRot( curXRotation , ofVec3f( 0,-1,0 ) );  
-					ofQuaternion xRot( curYRotation , ofVec3f( -1,0,0 ) );  
-					curRotation = yRot*xRot;
+					float _curXRotation = ofMap( faceCentroid.x , 0.0f , 1.0f , -maxXRotation , maxXRotation ) ;
+					float _curYRotation = ofMap( faceCentroid.y , 0.0f , 1.0f , -maxYRotation , maxYRotation ) ;
+					Tweenzor::add( &curXRotation , curXRotation, _curXRotation , 0.0f , 0.45f , EASE_OUT_QUAD ) ;
+					Tweenzor::add( &curYRotation , curYRotation, _curYRotation , 0.0f , 0.45f , EASE_OUT_QUAD ) ;
 				}
 			}
 
@@ -214,6 +216,10 @@ void testApp::updateTextures()
 			}
 		}
    }
+
+    ofQuaternion yRot( curXRotation , ofVec3f( 0,-1,0 ) );  
+	ofQuaternion xRot( curYRotation , ofVec3f( -1,0,0 ) );  
+	curRotation = yRot*xRot;
 }
 
 void testApp::draw() 
